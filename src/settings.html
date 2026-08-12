@@ -15,53 +15,67 @@
   }
   * { box-sizing: border-box; }
   html, body {
-    margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--fg);
     font-family: var(--font); font-size: 14px; -webkit-font-smoothing: antialiased;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.01em; user-select: none;
   }
-  .wrap { padding: 22px 24px; display: flex; flex-direction: column; gap: 20px; height: 100%; }
+  .wrap { padding: 22px 24px 20px; display: flex; flex-direction: column; gap: 20px; height: 100%; }
 
-  header { display: flex; align-items: center; gap: 10px; }
+  header { display: flex; align-items: center; gap: 12px; }
   header .logo {
-    width: 28px; height: 28px; border-radius: 8px;
+    width: 34px; height: 34px; border-radius: 10px; flex: none;
     background: linear-gradient(135deg, #3b82f6, #2563eb);
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 14px -4px rgba(59, 130, 246, 0.8);
+    box-shadow: 0 6px 18px -5px rgba(59, 130, 246, 0.9);
   }
-  header .logo svg { width: 17px; height: 17px; color: #fff; }
-  header h1 { font-size: 15px; margin: 0; font-weight: 650; letter-spacing: -0.02em; }
-  header p { margin: 1px 0 0; font-size: 12px; color: var(--muted); }
+  header .logo svg { width: 20px; height: 20px; color: #fff; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: -0.02em; }
+  header p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
 
-  .row { display: flex; flex-direction: column; gap: 8px; }
-  label.title { font-weight: 600; font-size: 13px; }
+  .field { display: flex; flex-direction: column; gap: 8px; }
+  .field > .label { font-weight: 600; font-size: 13px; }
 
   #shortcut {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    padding: 11px 13px; background: var(--panel); border: 1px solid var(--border);
-    border-radius: 11px; cursor: pointer; transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    padding: 12px 14px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
   }
   #shortcut:hover { background: var(--panel-2); }
   #shortcut.capturing { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25); }
-  #shortcut .combo { font-weight: 650; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
-  #shortcut .combo.placeholder { color: var(--muted); font-weight: 400; }
-  #shortcut .edit { color: var(--accent); font-size: 12px; font-weight: 600; }
+  #shortcut .combo { font-weight: 650; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; font-size: 15px; }
+  #shortcut .combo.placeholder { color: var(--muted); font-weight: 400; font-size: 14px; letter-spacing: -0.01em; }
+  #shortcut .edit { color: var(--accent); font-size: 13px; font-weight: 600; }
   .hint { color: var(--muted); font-size: 12px; line-height: 1.5; }
   .err { color: var(--danger); font-size: 12px; min-height: 15px; font-weight: 500; }
 
-  .check {
-    display: flex; align-items: center; gap: 11px; cursor: pointer;
-    padding: 12px 13px; background: var(--panel); border: 1px solid var(--border);
-    border-radius: 11px; transition: background 0.15s ease;
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    padding: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    cursor: pointer;
   }
-  .check:hover { background: var(--panel-2); }
-  .check input { width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; }
-  .check .ctext { display: flex; flex-direction: column; gap: 1px; }
-  .check .ctext strong { font-weight: 600; font-size: 13px; }
-  .check .ctext span { color: var(--muted); font-size: 12px; }
+  .toggle-row:hover { background: var(--panel-2); }
+  .toggle-row .ttext { display: flex; flex-direction: column; gap: 2px; }
+  .toggle-row .ttext strong { font-weight: 600; font-size: 13px; }
+  .toggle-row .ttext span { color: var(--muted); font-size: 12px; line-height: 1.4; }
+
+  .switch { position: relative; width: 46px; height: 27px; flex: none; }
+  .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+  .switch .track {
+    position: absolute; inset: 0; background: #334155; border-radius: 999px;
+    transition: background 0.18s ease;
+  }
+  .switch .thumb {
+    position: absolute; top: 3px; left: 3px; width: 21px; height: 21px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45); transition: transform 0.18s ease;
+  }
+  .switch input:checked ~ .track { background: var(--accent); }
+  .switch input:checked ~ .thumb { transform: translateX(19px); }
+  .switch input:focus-visible ~ .track { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35); }
 
   .actions { margin-top: auto; display: flex; justify-content: flex-end; gap: 10px; }
   button.btn {
-    padding: 9px 17px; border-radius: 10px; border: 1px solid var(--border);
+    padding: 10px 18px; border-radius: 10px; border: 1px solid var(--border);
     background: var(--panel); color: var(--fg); cursor: pointer;
     font-family: var(--font); font-size: 13px; font-weight: 600; letter-spacing: -0.01em;
     transition: background 0.15s ease, filter 0.15s ease, transform 0.1s ease;
@@ -69,7 +83,7 @@
   button.btn:hover { background: var(--panel-2); }
   button.btn:active { transform: scale(0.97); }
   button.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  button.btn.primary { background: var(--accent); border-color: transparent; color: #fff; box-shadow: 0 3px 14px -3px rgba(59, 130, 246, 0.8); }
+  button.btn.primary { background: var(--accent); border-color: transparent; color: #fff; box-shadow: 0 4px 16px -4px rgba(59, 130, 246, 0.85); }
   button.btn.primary:hover { background: var(--accent-strong); filter: brightness(1.04); }
 
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -81,32 +95,36 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
     </div>
     <div>
-      <h1>Snapshot Settings</h1>
-      <p>Capture shortcut & startup</p>
+      <h1>Налаштування Snapshot</h1>
+      <p>Комбінація клавіш та автозапуск</p>
     </div>
   </header>
 
-  <div class="row">
-    <label class="title">Capture shortcut</label>
+  <div class="field">
+    <div class="label">Комбінація для скріншота</div>
     <div id="shortcut" tabindex="0">
-      <span class="combo placeholder" id="combo">Click, then press keys…</span>
-      <span class="edit" id="editLabel">Change</span>
+      <span class="combo placeholder" id="combo">Натисніть, тоді введіть комбінацію…</span>
+      <span class="edit" id="editLabel">Змінити</span>
     </div>
-    <div class="hint">Needs at least one modifier (Ctrl/Cmd, Alt or Shift) plus a key.</div>
+    <div class="hint">Потрібен щонайменше один модифікатор (Ctrl/Cmd, Alt або Shift) і клавіша.</div>
     <div class="err" id="err"></div>
   </div>
 
-  <label class="check">
-    <input type="checkbox" id="autostart" />
-    <span class="ctext">
-      <strong>Start at login</strong>
-      <span>Launch Snapshot automatically when you sign in</span>
+  <label class="toggle-row">
+    <span class="ttext">
+      <strong>Запуск при вході</strong>
+      <span>Автоматично запускати Snapshot після входу в систему</span>
+    </span>
+    <span class="switch">
+      <input type="checkbox" id="autostart" />
+      <span class="track"></span>
+      <span class="thumb"></span>
     </span>
   </label>
 
   <div class="actions">
-    <button class="btn" id="cancel">Cancel</button>
-    <button class="btn primary" id="save">Save</button>
+    <button class="btn" id="cancel">Скасувати</button>
+    <button class="btn primary" id="save">Зберегти</button>
   </div>
 </div>
 
@@ -142,8 +160,8 @@
   function startCapture() {
     capturing = true;
     box.classList.add('capturing');
-    editLabel.textContent = 'Press keys…';
-    combo.textContent = 'Waiting for keys…';
+    editLabel.textContent = 'Введіть…';
+    combo.textContent = 'Очікування клавіш…';
     combo.classList.add('placeholder');
     err.textContent = '';
     box.focus();
@@ -151,9 +169,12 @@
   function stopCapture() {
     capturing = false;
     box.classList.remove('capturing');
-    editLabel.textContent = 'Change';
+    editLabel.textContent = 'Змінити';
   }
-  box.addEventListener('click', () => (capturing ? stopCapture() : startCapture()));
+  box.addEventListener('click', (e) => {
+    if (e.target === autostart) return;
+    capturing ? stopCapture() : startCapture();
+  });
 
   function keyName(e) {
     const c = e.code || '';
@@ -181,7 +202,7 @@
     if (e.shiftKey) mods.push('Shift');
     const k = keyName(e);
     if (!k) return;
-    if (mods.length === 0) { err.textContent = 'Add a modifier (Ctrl/Cmd, Alt or Shift).'; return; }
+    if (mods.length === 0) { err.textContent = 'Додайте модифікатор (Ctrl/Cmd, Alt або Shift).'; return; }
     current = [...mods, k].join('+');
     err.textContent = '';
     showCombo(current);
@@ -192,7 +213,7 @@
   document.getElementById('save').addEventListener('click', async () => {
     const res = await window.settingsAPI.save({ shortcut: current, openAtLogin: autostart.checked });
     if (res && res.ok === false) {
-      err.textContent = 'That shortcut is already in use by the system. Reverted.';
+      err.textContent = 'Цю комбінацію вже зайнято системою. Повернуто попередню.';
       current = res.config.shortcut;
       showCombo(current);
       return;

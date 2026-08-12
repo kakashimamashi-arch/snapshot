@@ -1,7 +1,7 @@
 {
   "name": "snapshot-annotate",
   "productName": "Snapshot",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Cross-platform screenshot tool with region selection and annotation",
   "author": "Yaroslav Yurchenko",
   "license": "MIT",

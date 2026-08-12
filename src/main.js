@@ -210,13 +210,13 @@ function unregisterOverlayShortcuts() {
 function promptScreenRecordingPermission() {
   const choice = dialog.showMessageBoxSync({
     type: 'warning',
-    buttons: ['Open System Settings', 'Cancel'],
+    buttons: ['Відкрити Системні параметри', 'Скасувати'],
     defaultId: 0,
-    title: 'Snapshot needs Screen Recording access',
-    message: 'macOS is blocking screen capture.',
+    title: 'Snapshot потребує доступу до запису екрана',
+    message: 'macOS блокує захоплення екрана.',
     detail:
-      'Go to System Settings → Privacy & Security → Screen Recording and enable it for this app ' +
-      '(shown as "Terminal", "Electron" or "Snapshot" depending on how you launched it), then quit and reopen that app completely.',
+      'Перейдіть у Системні параметри → Конфіденційність і безпека → Запис екрана та увімкніть Snapshot ' +
+      '(може відображатися як «Terminal», «Electron» або «Snapshot» — залежно від способу запуску), потім повністю закрийте й відкрийте застосунок знову.',
   });
   if (choice === 0) {
     shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
@@ -282,14 +282,14 @@ async function captureAndShow() {
     }
   } catch (err) {
     console.error('Capture failed:', err);
-    const msg = (err && (err.message || err.toString())) || 'Unknown error (see terminal logs).';
+    const msg = (err && (err.message || err.toString())) || 'Невідома помилка (див. логи в терміналі).';
     // "Failed to get sources." is what macOS gives us when Screen Recording
     // access isn't actually working for this process, even if
     // getMediaAccessStatus() claims it's granted.
     if (isMac && (msg.includes('Failed to get sources') || systemPreferences.getMediaAccessStatus('screen') !== 'granted')) {
       promptScreenRecordingPermission();
     } else {
-      dialog.showErrorBox('Snapshot', 'Capture failed: ' + msg);
+      dialog.showErrorBox('Snapshot', 'Не вдалося зробити скріншот: ' + msg);
     }
   } finally {
     capturing = false;
@@ -331,9 +331,9 @@ ipcMain.handle('overlay:save', async (event, dataURL) => {
   )} ${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}.png`;
 
   const { canceled, filePath } = await dialog.showSaveDialog(win, {
-    title: 'Save screenshot',
+    title: 'Зберегти скріншот',
     defaultPath: path.join(app.getPath('pictures'), defaultName),
-    filters: [{ name: 'PNG Image', extensions: ['png'] }],
+    filters: [{ name: 'Зображення PNG', extensions: ['png'] }],
   });
   if (canceled || !filePath) return { saved: false };
 
@@ -382,12 +382,12 @@ function openSettings() {
     return;
   }
   settingsWin = new BrowserWindow({
-    width: 440,
-    height: 300,
+    width: 480,
+    height: 352,
     resizable: false,
     minimizable: false,
     maximizable: false,
-    title: 'Snapshot — Settings',
+    title: 'Snapshot — Налаштування',
     autoHideMenuBar: true,
     backgroundColor: '#0b1120',
     webPreferences: {
@@ -429,13 +429,13 @@ function buildTrayMenu() {
     { label: 'Snapshot', enabled: false },
     { type: 'separator' },
     {
-      label: 'Capture region',
+      label: 'Зробити скріншот',
       accelerator: config.shortcut,
       click: () => captureAndShow(),
     },
     { type: 'separator' },
     {
-      label: 'Start at login',
+      label: 'Запуск при вході',
       type: 'checkbox',
       checked: !!config.openAtLogin,
       click: (item) => {
@@ -444,12 +444,12 @@ function buildTrayMenu() {
         saveConfig();
       },
     },
-    { label: 'Change shortcut…', click: () => openSettings() },
+    { label: 'Змінити комбінацію…', click: () => openSettings() },
     { type: 'separator' },
-    { label: 'Quit Snapshot', click: () => app.quit() },
+    { label: 'Вийти зі Snapshot', click: () => app.quit() },
   ]);
   tray.setContextMenu(menu);
-  tray.setToolTip('Snapshot · ' + prettyShortcut(config.shortcut) + ' to capture');
+  tray.setToolTip('Snapshot · ' + prettyShortcut(config.shortcut) + ' — зробити скріншот');
 }
 
 function createTray() {
