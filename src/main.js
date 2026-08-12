@@ -383,7 +383,8 @@ function openSettings() {
   }
   settingsWin = new BrowserWindow({
     width: 480,
-    height: 352,
+    height: 396,
+    useContentSize: true, // size refers to the web content, not incl. title bar
     resizable: false,
     minimizable: false,
     maximizable: false,

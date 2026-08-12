@@ -106,7 +106,7 @@
       <span class="combo placeholder" id="combo">Натисніть, тоді введіть комбінацію…</span>
       <span class="edit" id="editLabel">Змінити</span>
     </div>
-    <div class="hint">Потрібен щонайменше один модифікатор (Ctrl/Cmd, Alt або Shift) і клавіша.</div>
+    <div class="hint">Модифікатор (Ctrl/Cmd, Alt або Shift) + клавіша, або одна клавіша F1–F12.</div>
     <div class="err" id="err"></div>
   </div>
 
@@ -202,7 +202,11 @@
     if (e.shiftKey) mods.push('Shift');
     const k = keyName(e);
     if (!k) return;
-    if (mods.length === 0) { err.textContent = 'Додайте модифікатор (Ctrl/Cmd, Alt або Shift).'; return; }
+    const isFnKey = /^F([1-9]|1[0-2])$/.test(k);
+    if (mods.length === 0 && !isFnKey) {
+      err.textContent = 'Додайте модифікатор (Ctrl/Cmd, Alt або Shift), або натисніть F1–F12.';
+      return;
+    }
     current = [...mods, k].join('+');
     err.textContent = '';
     showCombo(current);

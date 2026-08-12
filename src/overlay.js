@@ -30,6 +30,7 @@ let dragging = false;
 let dragStart = null;
 let moving = null; // { mode:'sel', lastX, lastY } | { mode:'resize', h:'nw'|... }
 let eyedropping = false;
+let fillMode = false; // filled rectangles/ellipses
 
 const HANDLE_TOL = 9; // CSS px
 
@@ -81,6 +82,8 @@ function resetState() {
   annotations.length = 0;
   cancelTextInput();
   eyedropping = false;
+  fillMode = false;
+  if (typeof fillBtn !== 'undefined' && fillBtn) fillBtn.classList.remove('active');
   toolbar.classList.remove('show');
   hint.classList.remove('hidden');
   dims.style.display = 'none';
@@ -144,12 +147,15 @@ function drawAnnotation(ctx, a) {
   } else if (a.tool === 'arrow') {
     drawArrow(ctx, a.x0 * s, a.y0 * s, a.x1 * s, a.y1 * s, a.width * s);
   } else if (a.tool === 'rect') {
-    ctx.strokeRect(Math.min(a.x0, a.x1) * s, Math.min(a.y0, a.y1) * s,
-      Math.abs(a.x1 - a.x0) * s, Math.abs(a.y1 - a.y0) * s);
+    const rx = Math.min(a.x0, a.x1) * s, ry = Math.min(a.y0, a.y1) * s;
+    const rw = Math.abs(a.x1 - a.x0) * s, rh = Math.abs(a.y1 - a.y0) * s;
+    if (a.fill) { ctx.fillStyle = a.color; ctx.fillRect(rx, ry, rw, rh); }
+    ctx.strokeRect(rx, ry, rw, rh);
   } else if (a.tool === 'ellipse') {
     ctx.beginPath();
     ctx.ellipse(((a.x0 + a.x1) / 2) * s, ((a.y0 + a.y1) / 2) * s,
       (Math.abs(a.x1 - a.x0) / 2) * s, (Math.abs(a.y1 - a.y0) / 2) * s, 0, 0, Math.PI * 2);
+    if (a.fill) { ctx.fillStyle = a.color; ctx.fill(); }
     ctx.stroke();
   } else if (a.tool === 'text') {
     const size = a.size * s;
@@ -164,6 +170,19 @@ function drawAnnotation(ctx, a) {
   } else if (a.tool === 'step') {
     const r = (11 + a.width) * s;
     const x = a.x * s, y = a.y * s;
+    // Optional arrow pointing from the badge to a target (drag from the badge).
+    if (a.ax != null && a.ay != null) {
+      const tx = a.ax * s, ty = a.ay * s;
+      if (Math.hypot(tx - x, ty - y) > r + 4) {
+        const ang = Math.atan2(ty - y, tx - x);
+        ctx.strokeStyle = a.color;
+        ctx.fillStyle = a.color;
+        ctx.lineWidth = Math.max(2, a.width * s);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        drawArrow(ctx, x + Math.cos(ang) * r, y + Math.sin(ang) * r, tx, ty, a.width * s);
+      }
+    }
     ctx.shadowColor = 'rgba(0,0,0,0.35)';
     ctx.shadowBlur = 6 * s;
     ctx.shadowOffsetY = 1.5 * s;
@@ -412,14 +431,14 @@ uiCanvas.addEventListener('mousedown', (e) => {
     return;
   }
 
-  // Numbered step badge: one click stamps the next number.
+  // Numbered step badge: click stamps the next number; drag adds an arrow.
   if (activeTool === 'step') {
-    if (insideSel(x, y)) {
-      const n = annotations.filter((a) => a.tool === 'step').length + 1;
-      annotations.push({ tool: 'step', x, y, n, color, width });
-      redrawContent();
-      redrawUI();
-    }
+    if (!insideSel(x, y)) return;
+    dragging = true;
+    dragStart = { x, y };
+    const n = annotations.filter((a) => a.tool === 'step').length + 1;
+    draft = { tool: 'step', x, y, n, color, width, ax: x, ay: y };
+    redrawUI();
     return;
   }
 
@@ -446,7 +465,7 @@ uiCanvas.addEventListener('mousedown', (e) => {
   if (activeTool === 'pen' || activeTool === 'blur') {
     draft = { tool: activeTool, color, width, points: [{ x, y }] };
   } else {
-    draft = { tool: activeTool, color, width, x0: x, y0: y, x1: x, y1: y };
+    draft = { tool: activeTool, color, width, x0: x, y0: y, x1: x, y1: y, fill: fillMode };
   }
   redrawUI();
 });
@@ -490,6 +509,7 @@ window.addEventListener('mousemove', (e) => {
 
   if (draft) {
     if (draft.tool === 'pen' || draft.tool === 'blur') draft.points.push(clampToSel({ x, y }));
+    else if (draft.tool === 'step') { const c = clampToSel({ x, y }); draft.ax = c.x; draft.ay = c.y; }
     else { const c = clampToSel({ x, y }); draft.x1 = c.x; draft.y1 = c.y; }
     redrawUI();
   }
@@ -522,6 +542,15 @@ window.addEventListener('mouseup', () => {
   }
 
   if (draft) {
+    if (draft.tool === 'step') {
+      // drag too short → plain badge, no arrow
+      if (Math.hypot(draft.ax - draft.x, draft.ay - draft.y) < 8) { draft.ax = null; draft.ay = null; }
+      annotations.push(draft);
+      draft = null;
+      redrawContent();
+      redrawUI();
+      return;
+    }
     // pen & blur are path brushes (a single click = a dot); the rest are shapes
     // that need a minimum drag distance to count.
     const isShape = draft.tool !== 'pen' && draft.tool !== 'blur';
@@ -671,6 +700,14 @@ function pickColorAt(x, y) {
 }
 eyeBtn.addEventListener('click', () => (eyedropping ? endEyedrop() : startEyedrop()));
 
+// Fill toggle — filled rectangles/ellipses
+const fillBtn = document.getElementById('fill');
+function setFill(on) {
+  fillMode = on;
+  fillBtn.classList.toggle('active', fillMode);
+}
+fillBtn.addEventListener('click', () => setFill(!fillMode));
+
 const WIDTHS = [2, 4, 7];
 const widthsEl = document.getElementById('widths');
 WIDTHS.forEach((w) => {
@@ -717,6 +754,7 @@ window.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); doSave(); return; }
   if (phase !== 'annotating') return;
   if (e.key.toLowerCase() === 'i') { startEyedrop(); return; }
+  if (e.key.toLowerCase() === 'f') { setFill(!fillMode); return; }
   const map = { v: 'move', p: 'pen', a: 'arrow', r: 'rect', o: 'ellipse', l: 'line', b: 'blur', t: 'text', n: 'step' };
   const t = map[e.key.toLowerCase()];
   if (t) setTool(t);
