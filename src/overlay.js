@@ -29,8 +29,22 @@ let draft = null;
 let dragging = false;
 let dragStart = null;
 let moving = null; // { mode:'sel', lastX, lastY } | { mode:'resize', h:'nw'|... }
+let eyedropping = false;
 
 const HANDLE_TOL = 9; // CSS px
+
+// Colour helpers (for the eyedropper + numbered-step badge contrast)
+function rgbToHex(r, g, b) {
+  const h = (n) => n.toString(16).padStart(2, '0');
+  return '#' + h(r) + h(g) + h(b);
+}
+function textColorFor(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return '#ffffff';
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? '#111827' : '#ffffff';
+}
 
 // ---------------------------------------------------------------------------
 window.snapshot.onInit(({ dataURL }) => {
@@ -66,11 +80,17 @@ function resetState() {
   dragging = false;
   annotations.length = 0;
   cancelTextInput();
+  eyedropping = false;
   toolbar.classList.remove('show');
   hint.classList.remove('hidden');
   dims.style.display = 'none';
   document.body.classList.remove('tool-move', 'tool-text');
   uiCanvas.style.cursor = '';
+  if (typeof eyeBtn !== 'undefined' && eyeBtn) eyeBtn.classList.remove('picking');
+  if (typeof customSwatch !== 'undefined' && customSwatch) {
+    customSwatch.style.display = 'none';
+    customSwatch.classList.remove('active');
+  }
   setTool('pen');
   if (img) { redrawContent(); redrawUI(); }
 }
@@ -141,6 +161,23 @@ function drawAnnotation(ctx, a) {
     ctx.strokeText(a.text, a.x * s, a.y * s);
     ctx.fillStyle = a.color;
     ctx.fillText(a.text, a.x * s, a.y * s);
+  } else if (a.tool === 'step') {
+    const r = (11 + a.width) * s;
+    const x = a.x * s, y = a.y * s;
+    ctx.shadowColor = 'rgba(0,0,0,0.35)';
+    ctx.shadowBlur = 6 * s;
+    ctx.shadowOffsetY = 1.5 * s;
+    ctx.fillStyle = a.color;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.lineWidth = Math.max(1, 2 * s);
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = textColorFor(a.color);
+    ctx.font = `700 ${Math.round(r * 1.15)}px -apple-system, "Segoe UI", system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(a.n), x, y + r * 0.04);
   }
   ctx.restore();
 }
@@ -368,6 +405,24 @@ uiCanvas.addEventListener('mousedown', (e) => {
     return;
   }
 
+  // Eyedropper: sample the true (un-dimmed) colour anywhere on the screenshot.
+  if (eyedropping) {
+    pickColorAt(x, y);
+    endEyedrop();
+    return;
+  }
+
+  // Numbered step badge: one click stamps the next number.
+  if (activeTool === 'step') {
+    if (insideSel(x, y)) {
+      const n = annotations.filter((a) => a.tool === 'step').length + 1;
+      annotations.push({ tool: 'step', x, y, n, color, width });
+      redrawContent();
+      redrawUI();
+    }
+    return;
+  }
+
   if (activeTool === 'move') {
     const h = handleAt(x, y);
     if (h) {
@@ -559,6 +614,11 @@ function setTool(t) {
 }
 toolButtons.forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
 
+function activateSwatch(el) {
+  document.querySelectorAll('.swatch').forEach((s) => s.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+
 const PALETTE = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#2f6fed', '#af52de', '#ffffff', '#000000'];
 const paletteEl = document.getElementById('palette');
 PALETTE.forEach((c, i) => {
@@ -568,12 +628,48 @@ PALETTE.forEach((c, i) => {
   sw.title = c;
   sw.addEventListener('click', () => {
     color = c;
-    document.querySelectorAll('.swatch').forEach((el) => el.classList.remove('active'));
-    sw.classList.add('active');
+    activateSwatch(sw);
     if (textInput) { textInput.style.color = c; textInput.style.caretColor = c; }
   });
   paletteEl.appendChild(sw);
 });
+
+// Custom swatch — holds the last eyedropper-picked colour.
+const customSwatch = document.createElement('button');
+customSwatch.className = 'swatch custom';
+customSwatch.title = 'Picked colour';
+customSwatch.style.display = 'none';
+customSwatch.addEventListener('click', () => {
+  if (customSwatch._c) { color = customSwatch._c; activateSwatch(customSwatch); }
+});
+paletteEl.appendChild(customSwatch);
+
+// Eyedropper
+const eyeBtn = document.getElementById('eyedropper');
+function startEyedrop() {
+  eyedropping = true;
+  eyeBtn.classList.add('picking');
+  uiCanvas.style.cursor = 'crosshair';
+}
+function endEyedrop() {
+  eyedropping = false;
+  eyeBtn.classList.remove('picking');
+  if (activeTool !== 'move') uiCanvas.style.cursor = '';
+}
+function pickColorAt(x, y) {
+  const px = Math.max(0, Math.min(contentCanvas.width - 1, Math.round(x * scale)));
+  const py = Math.max(0, Math.min(contentCanvas.height - 1, Math.round(y * scale)));
+  const d = cctx.getImageData(px, py, 1, 1).data;
+  const hex = rgbToHex(d[0], d[1], d[2]);
+  color = hex;
+  customSwatch.style.display = '';
+  customSwatch.style.background = hex;
+  customSwatch.title = hex;
+  customSwatch._c = hex;
+  activateSwatch(customSwatch);
+  if (textInput) { textInput.style.color = hex; textInput.style.caretColor = hex; }
+}
+eyeBtn.addEventListener('click', () => (eyedropping ? endEyedrop() : startEyedrop()));
 
 const WIDTHS = [2, 4, 7];
 const widthsEl = document.getElementById('widths');
@@ -611,12 +707,17 @@ function undo() {
 // ---------------------------------------------------------------------------
 window.addEventListener('keydown', (e) => {
   if (textInput) return;
-  if (e.key === 'Escape') { window.snapshot.close(); return; }
+  if (e.key === 'Escape') {
+    if (eyedropping) { endEyedrop(); return; } // cancel pick, keep overlay open
+    window.snapshot.close();
+    return;
+  }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') { e.preventDefault(); doCopy(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); doSave(); return; }
   if (phase !== 'annotating') return;
-  const map = { v: 'move', p: 'pen', a: 'arrow', r: 'rect', o: 'ellipse', l: 'line', b: 'blur', t: 'text' };
+  if (e.key.toLowerCase() === 'i') { startEyedrop(); return; }
+  const map = { v: 'move', p: 'pen', a: 'arrow', r: 'rect', o: 'ellipse', l: 'line', b: 'blur', t: 'text', n: 'step' };
   const t = map[e.key.toLowerCase()];
   if (t) setTool(t);
 });

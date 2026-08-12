@@ -81,6 +81,7 @@
     background: var(--accent); color: #fff;
     box-shadow: 0 2px 12px -2px rgba(59, 130, 246, 0.7);
   }
+  .tool.picking { background: var(--accent); color: #fff; }
   .tool svg { width: 18px; height: 18px; }
 
   .sep { width: 1px; height: 22px; background: var(--hair); margin: 0 4px; border-radius: 1px; }
@@ -110,6 +111,7 @@
     transform: scale(1.12);
     box-shadow: 0 0 0 2px var(--panel-solid), 0 0 0 4px #ffffff;
   }
+  .swatch.custom { border-style: dashed; border-color: rgba(255, 255, 255, 0.5); }
 
   /* action buttons */
   .action {
@@ -166,12 +168,19 @@
   <button class="tool" data-tool="text" title="Text (T)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="9" y1="20" x2="15" y2="20"/></svg>
   </button>
+  <button class="tool" data-tool="step" title="Numbered step (N)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="700" fill="currentColor" stroke="none" font-family="system-ui, sans-serif">1</text></svg>
+  </button>
 
   <div class="sep"></div>
 
   <div class="widths" id="widths"></div>
 
   <div class="sep"></div>
+
+  <button class="tool" id="eyedropper" title="Pick colour from screen (I)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.12 2.12 0 0 1 3 3L18 9l.4.4a2.12 2.12 0 1 1-3 3l-3.8-3.8a2.12 2.12 0 1 1 3-3l.4.4Z"/></svg>
+  </button>
 
   <div id="palette"></div>
 
