@@ -29,7 +29,7 @@
       "package.json"
     ],
     "publish": [
-      { "provider": "github" }
+      { "provider": "github", "releaseType": "release" }
     ],
     "win": {
       "target": [
