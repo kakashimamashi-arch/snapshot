@@ -1,0 +1,152 @@
+<meta charset="utf-8" />
+<style>
+  :root { --accent:#2f6fed; --panel:#26272e; --border:#3a3c45; --text:#e8e9ee; --muted:#9aa0ad; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:#1e1f24; color:var(--text);
+    font-family:-apple-system,"Segoe UI",Roboto,sans-serif; font-size:14px; }
+  .wrap { padding:20px 22px; display:flex; flex-direction:column; gap:18px; height:100%; }
+  h1 { font-size:15px; margin:0 0 2px; font-weight:600; }
+  .row { display:flex; flex-direction:column; gap:7px; }
+  label.title { font-weight:600; font-size:13px; }
+  .hint { color:var(--muted); font-size:12px; }
+  #shortcut {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:10px 12px; background:var(--panel); border:1px solid var(--border);
+    border-radius:9px; cursor:pointer; user-select:none;
+  }
+  #shortcut.capturing { border-color:var(--accent); box-shadow:0 0 0 2px rgba(47,111,237,.25); }
+  #shortcut .combo { font-variant-numeric:tabular-nums; font-weight:600; letter-spacing:.3px; }
+  #shortcut .combo.placeholder { color:var(--muted); font-weight:400; }
+  #shortcut .edit { color:var(--accent); font-size:12px; }
+  .check { display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; }
+  .check input { width:16px; height:16px; accent-color:var(--accent); }
+  .err { color:#ff6b6b; font-size:12px; min-height:14px; }
+  .actions { margin-top:auto; display:flex; justify-content:flex-end; gap:10px; }
+  button.btn {
+    padding:8px 16px; border-radius:8px; border:1px solid var(--border);
+    background:var(--panel); color:var(--text); cursor:pointer; font-size:13px; font-weight:600;
+  }
+  button.btn:hover { background:#31333c; }
+  button.btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.btn.primary:hover { filter:brightness(1.08); }
+</style>
+
+<div class="wrap">
+  <h1>Snapshot Settings</h1>
+
+  <div class="row">
+    <label class="title">Capture shortcut</label>
+    <div id="shortcut" tabindex="0">
+      <span class="combo placeholder" id="combo">Click, then press keys…</span>
+      <span class="edit" id="editLabel">Change</span>
+    </div>
+    <div class="hint">Need at least one modifier (Ctrl/Cmd, Alt, Shift) plus a key.</div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <label class="check">
+    <input type="checkbox" id="autostart" />
+    <span>Start Snapshot automatically at login</span>
+  </label>
+
+  <div class="actions">
+    <button class="btn" id="cancel">Cancel</button>
+    <button class="btn primary" id="save">Save</button>
+  </div>
+</div>
+
+<script>
+  let current = 'CommandOrControl+Shift+X';
+  let capturing = false;
+
+  const box = document.getElementById('shortcut');
+  const combo = document.getElementById('combo');
+  const editLabel = document.getElementById('editLabel');
+  const err = document.getElementById('err');
+  const autostart = document.getElementById('autostart');
+
+  function pretty(accel) {
+    return accel
+      .replace('CommandOrControl', navigator.platform.includes('Mac') ? '⌘' : 'Ctrl')
+      .replace('Alt', navigator.platform.includes('Mac') ? '⌥' : 'Alt')
+      .replace('Shift', navigator.platform.includes('Mac') ? '⇧' : 'Shift');
+  }
+  function showCombo(accel) {
+    combo.textContent = pretty(accel);
+    combo.classList.remove('placeholder');
+  }
+
+  window.settingsAPI.onInit((cfg) => {
+    current = cfg.shortcut || current;
+    autostart.checked = !!cfg.openAtLogin;
+    showCombo(current);
+  });
+
+  function startCapture() {
+    capturing = true;
+    box.classList.add('capturing');
+    editLabel.textContent = 'Press keys…';
+    combo.textContent = 'Waiting for keys…';
+    combo.classList.add('placeholder');
+    err.textContent = '';
+    box.focus();
+  }
+  function stopCapture() {
+    capturing = false;
+    box.classList.remove('capturing');
+    editLabel.textContent = 'Change';
+  }
+
+  box.addEventListener('click', () => (capturing ? stopCapture() : startCapture()));
+
+  function keyName(e) {
+    const c = e.code || '';
+    if (/^Key[A-Z]$/.test(c)) return c.slice(3);
+    if (/^Digit[0-9]$/.test(c)) return c.slice(5);
+    if (/^F([1-9]|1[0-2])$/.test(c)) return c;
+    const named = {
+      Space: 'Space', Enter: 'Return', Tab: 'Tab', Backspace: 'Backspace',
+      ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right',
+      Home: 'Home', End: 'End', PageUp: 'PageUp', PageDown: 'PageDown',
+      Insert: 'Insert', Delete: 'Delete', Comma: ',', Period: '.', Slash: '/',
+      Semicolon: ';', Quote: "'", BracketLeft: '[', BracketRight: ']',
+      Backslash: '\\', Minus: '-', Equal: '=', Backquote: '`',
+    };
+    return named[c] || '';
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (!capturing) return;
+    e.preventDefault();
+    if (e.key === 'Escape') { stopCapture(); showCombo(current); return; }
+
+    const mods = [];
+    if (e.ctrlKey || e.metaKey) mods.push('CommandOrControl');
+    if (e.altKey) mods.push('Alt');
+    if (e.shiftKey) mods.push('Shift');
+
+    const k = keyName(e);
+    if (!k) return; // waiting for a non-modifier key
+    if (mods.length === 0) {
+      err.textContent = 'Add a modifier (Ctrl/Cmd, Alt or Shift).';
+      return;
+    }
+    current = [...mods, k].join('+');
+    err.textContent = '';
+    showCombo(current);
+    stopCapture();
+  });
+
+  document.getElementById('cancel').addEventListener('click', () => window.settingsAPI.close());
+
+  document.getElementById('save').addEventListener('click', async () => {
+    const res = await window.settingsAPI.save({ shortcut: current, openAtLogin: autostart.checked });
+    if (res && res.ok === false) {
+      err.textContent = 'That shortcut is already in use by the system. Reverted.';
+      current = res.config.shortcut;
+      showCombo(current);
+      return;
+    }
+    window.settingsAPI.close();
+  });
+</script>

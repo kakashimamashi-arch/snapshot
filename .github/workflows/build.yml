@@ -1,0 +1,59 @@
+name: Build installers
+
+# Push a version tag (e.g. v1.0.0) to build + publish a GitHub Release with the
+# Windows .exe and both macOS .dmg files. You can also run it manually from the
+# Actions tab (workflow_dispatch) to just get the installers as artifacts.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # On a tag: build for the host OS and publish to the GitHub Release.
+      - name: Build & publish (release)
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false # unsigned build, skip macOS signing
+        run: npx electron-builder --publish always
+
+      # Manual run: just build, don't publish.
+      - name: Build (artifacts only)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npx electron-builder --publish never
+
+      - name: Upload artifacts
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.os }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+          if-no-files-found: ignore
