@@ -160,31 +160,63 @@ function drawArrow(ctx, x0, y0, x1, y1, w) {
   ctx.fill();
 }
 
-// Blur/pixelate a rectangular region by sampling `src` down and scaling it back
-// up with smoothing. Samples whatever is already on the canvas beneath it, so a
-// blur placed over other annotations obscures them too.
-function applyBlur(ctx, src, a) {
-  const rx = Math.round(Math.min(a.x0, a.x1) * scale);
-  const ry = Math.round(Math.min(a.y0, a.y1) * scale);
-  const rw = Math.round(Math.abs(a.x1 - a.x0) * scale);
-  const rh = Math.round(Math.abs(a.y1 - a.y0) * scale);
-  if (rw < 2 || rh < 2) return;
-  const block = Math.max(3, Math.round(9 * scale)); // ~9 CSS-px blocks
-  const tw = Math.max(1, Math.round(rw / block));
-  const th = Math.max(1, Math.round(rh / block));
+// Blur BRUSH (Photoshop-style): paint a soft Gaussian blur along the dragged
+// path with a round brush (round caps/joins → rounded ends & corners). Samples
+// whatever is already on the canvas beneath it, so it obscures anything under
+// the stroke. Only the stroke's bounding box is blurred (cheap even at 4K).
+function drawBlurBrush(ctx, src, a) {
+  const pts = a.points;
+  if (!pts || !pts.length) return;
+
+  const rad = Math.max(4, (a.width || 4) * 5) * scale;      // brush radius (native px)
+  const gk = Math.max(5, Math.round((a.width || 4) * 1.7 * scale)); // gaussian strength
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of pts) {
+    minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+  }
+  const pad = rad + gk * 3 + 2;
+  let bx = Math.floor(minX * scale - pad);
+  let by = Math.floor(minY * scale - pad);
+  let bw = Math.ceil((maxX - minX) * scale + pad * 2);
+  let bh = Math.ceil((maxY - minY) * scale + pad * 2);
+  // clamp to the source canvas
+  if (bx < 0) { bw += bx; bx = 0; }
+  if (by < 0) { bh += by; by = 0; }
+  bw = Math.min(src.width - bx, bw);
+  bh = Math.min(src.height - by, bh);
+  if (bw <= 0 || bh <= 0) return;
+
   const tmp = document.createElement('canvas');
-  tmp.width = tw; tmp.height = th;
+  tmp.width = bw; tmp.height = bh;
   const tc = tmp.getContext('2d');
-  tc.imageSmoothingEnabled = true;
-  tc.drawImage(src, rx, ry, rw, rh, 0, 0, tw, th);
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(rx, ry, rw, rh);
-  ctx.clip();
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(tmp, 0, 0, tw, th, rx, ry, rw, rh);
-  ctx.restore();
+
+  // 1) Gaussian-blur the region into tmp.
+  tc.filter = `blur(${gk}px)`;
+  tc.drawImage(src, bx, by, bw, bh, 0, 0, bw, bh);
+  tc.filter = 'none';
+
+  // 2) Keep only the round brush stroke.
+  tc.globalCompositeOperation = 'destination-in';
+  tc.strokeStyle = '#000';
+  tc.fillStyle = '#000';
+  tc.lineCap = 'round';
+  tc.lineJoin = 'round';
+  tc.lineWidth = rad * 2;
+  tc.beginPath();
+  tc.moveTo(pts[0].x * scale - bx, pts[0].y * scale - by);
+  if (pts.length === 1) {
+    tc.arc(pts[0].x * scale - bx, pts[0].y * scale - by, rad, 0, Math.PI * 2);
+    tc.fill();
+  } else {
+    for (let i = 1; i < pts.length; i++) tc.lineTo(pts[i].x * scale - bx, pts[i].y * scale - by);
+    tc.stroke();
+  }
+  tc.globalCompositeOperation = 'source-over';
+
+  // 3) Composite the blurred stroke back onto the target.
+  ctx.drawImage(tmp, bx, by);
 }
 
 // ---------------------------------------------------------------------------
@@ -199,7 +231,7 @@ function redrawContent() {
     cctx.clip();
   }
   for (const a of annotations) {
-    if (a.tool === 'blur') applyBlur(cctx, contentCanvas, a);
+    if (a.tool === 'blur') drawBlurBrush(cctx, contentCanvas, a);
     else drawAnnotation(cctx, a);
   }
   cctx.restore();
@@ -245,7 +277,7 @@ function redrawUI() {
       uctx.beginPath();
       uctx.rect(sel.x * s, sel.y * s, sel.w * s, sel.h * s);
       uctx.clip();
-      if (draft.tool === 'blur') applyBlur(uctx, contentCanvas, draft);
+      if (draft.tool === 'blur') drawBlurBrush(uctx, contentCanvas, draft);
       else drawAnnotation(uctx, draft);
       uctx.restore();
     }
@@ -356,8 +388,11 @@ uiCanvas.addEventListener('mousedown', (e) => {
   if (!insideSel(x, y)) return;
   dragging = true;
   dragStart = { x, y };
-  if (activeTool === 'pen') draft = { tool: 'pen', color, width, points: [{ x, y }] };
-  else draft = { tool: activeTool, color, width, x0: x, y0: y, x1: x, y1: y };
+  if (activeTool === 'pen' || activeTool === 'blur') {
+    draft = { tool: activeTool, color, width, points: [{ x, y }] };
+  } else {
+    draft = { tool: activeTool, color, width, x0: x, y0: y, x1: x, y1: y };
+  }
   redrawUI();
 });
 
@@ -399,7 +434,7 @@ window.addEventListener('mousemove', (e) => {
   }
 
   if (draft) {
-    if (draft.tool === 'pen') draft.points.push(clampToSel({ x, y }));
+    if (draft.tool === 'pen' || draft.tool === 'blur') draft.points.push(clampToSel({ x, y }));
     else { const c = clampToSel({ x, y }); draft.x1 = c.x; draft.y1 = c.y; }
     redrawUI();
   }
@@ -432,7 +467,9 @@ window.addEventListener('mouseup', () => {
   }
 
   if (draft) {
-    const isShape = draft.tool !== 'pen';
+    // pen & blur are path brushes (a single click = a dot); the rest are shapes
+    // that need a minimum drag distance to count.
+    const isShape = draft.tool !== 'pen' && draft.tool !== 'blur';
     if (isShape && Math.hypot(draft.x1 - draft.x0, draft.y1 - draft.y0) < 3) {
       draft = null;
       redrawUI();
