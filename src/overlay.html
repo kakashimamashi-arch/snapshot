@@ -1,123 +1,169 @@
 <meta charset="utf-8" />
 <style>
   :root {
-    --accent: #2f6fed;
-    --panel: #1e1f24;
-    --panel-border: #33353d;
-    --text: #e8e9ee;
-    --muted: #9aa0ad;
+    --accent: #3b82f6;
+    --accent-strong: #2563eb;
+    --panel: rgba(17, 24, 39, 0.72);
+    --panel-solid: #0f172a;
+    --hair: rgba(255, 255, 255, 0.10);
+    --fg: #e5e7eb;
+    --muted: #94a3b8;
+    --font: system-ui, -apple-system, "Segoe UI Variable Display", "Segoe UI",
+      Roboto, "Helvetica Neue", Arial, sans-serif;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
   html, body {
     width: 100%; height: 100%; overflow: hidden;
     cursor: crosshair; background: #000;
-    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
   }
   body.tool-text { cursor: text; }
   body.tool-move { cursor: move; }
 
-  /* Screenshot + committed annotations (native resolution, scaled to fit). */
-  #content {
+  #content, #ui {
     position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    display: block;
-  }
-  /* UI layer: dim mask, selection outline, live preview (CSS-pixel resolution). */
-  #ui {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    display: block;
+    width: 100%; height: 100%; display: block;
   }
 
-  /* Hint shown before a selection is made. */
+  /* ── Hint ─────────────────────────────────────────────────────────── */
   #hint {
-    position: absolute; top: 24px; left: 50%; transform: translateX(-50%);
-    background: rgba(20,21,26,.85); color: var(--text);
-    padding: 10px 16px; border-radius: 10px; font-size: 13px;
-    border: 1px solid var(--panel-border); pointer-events: none;
-    box-shadow: 0 8px 30px rgba(0,0,0,.45); z-index: 30;
+    position: absolute; top: 26px; left: 50%; transform: translateX(-50%);
+    background: var(--panel); color: var(--fg);
+    padding: 9px 16px; border-radius: 12px; font-size: 13px; font-weight: 500;
+    letter-spacing: -0.01em; border: 1px solid var(--hair); pointer-events: none;
+    box-shadow: 0 16px 50px -12px rgba(0, 0, 0, 0.6);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    backdrop-filter: blur(22px) saturate(160%); z-index: 30;
+    display: flex; align-items: center; gap: 8px;
   }
-  #hint b { color: #fff; }
   #hint.hidden { display: none; }
-
-  /* Size readout badge that follows the selection. */
-  #dims {
-    position: absolute; z-index: 25; pointer-events: none;
-    background: var(--accent); color: #fff;
-    font-size: 12px; padding: 2px 7px; border-radius: 6px;
-    font-variant-numeric: tabular-nums; display: none;
+  kbd {
+    font-family: var(--font); font-size: 11px; font-weight: 600;
+    background: rgba(255, 255, 255, 0.12); color: #fff;
+    border: 1px solid var(--hair); border-radius: 6px; padding: 1px 6px;
+    line-height: 1.5;
   }
 
-  /* Toolbar. */
+  /* ── Size badge ───────────────────────────────────────────────────── */
+  #dims {
+    position: absolute; z-index: 25; pointer-events: none; display: none;
+    background: var(--accent); color: #fff;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.01em;
+    padding: 3px 8px; border-radius: 7px;
+    font-variant-numeric: tabular-nums;
+    box-shadow: 0 6px 18px -4px rgba(37, 99, 235, 0.7);
+  }
+
+  /* ── Toolbar ──────────────────────────────────────────────────────── */
   #toolbar {
     position: absolute; z-index: 40; display: none;
-    background: var(--panel); border: 1px solid var(--panel-border);
-    border-radius: 12px; padding: 6px; gap: 4px;
-    box-shadow: 0 12px 40px rgba(0,0,0,.5);
-    align-items: center; flex-wrap: nowrap; cursor: default;
+    align-items: center; gap: 3px; padding: 7px;
+    background: var(--panel); border: 1px solid var(--hair);
+    border-radius: 16px; cursor: default;
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    backdrop-filter: blur(22px) saturate(160%);
+    box-shadow: 0 20px 60px -16px rgba(0, 0, 0, 0.7),
+      inset 0 1px 0 rgba(255, 255, 255, 0.07);
   }
   #toolbar.show { display: flex; }
+
   .tool {
-    width: 34px; height: 34px; border-radius: 8px; border: none;
-    background: transparent; color: var(--text); cursor: pointer;
+    width: 34px; height: 34px; border-radius: 10px; border: none;
+    background: transparent; color: var(--muted); cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    font-size: 16px; transition: background .12s;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
   }
-  .tool:hover { background: #2b2d34; }
-  .tool.active { background: var(--accent); color: #fff; }
+  .tool:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
+  .tool:active { transform: scale(0.94); }
+  .tool:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .tool.active {
+    background: var(--accent); color: #fff;
+    box-shadow: 0 2px 12px -2px rgba(59, 130, 246, 0.7);
+  }
   .tool svg { width: 18px; height: 18px; }
-  .sep { width: 1px; height: 24px; background: var(--panel-border); margin: 0 3px; }
 
-  .swatch {
-    width: 20px; height: 20px; border-radius: 50%; cursor: pointer;
-    border: 2px solid rgba(255,255,255,.25); padding: 0;
-  }
-  .swatch.active { border-color: #fff; transform: scale(1.12); }
+  .sep { width: 1px; height: 22px; background: var(--hair); margin: 0 4px; border-radius: 1px; }
 
+  /* stroke widths */
   .widths { display: flex; align-items: center; gap: 2px; }
   .wbtn {
-    width: 28px; height: 30px; border-radius: 7px; border: none; cursor: pointer;
+    width: 30px; height: 32px; border-radius: 9px; border: none; cursor: pointer;
     background: transparent; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s ease, transform 0.1s ease;
   }
-  .wbtn:hover { background: #2b2d34; }
+  .wbtn:hover { background: rgba(255, 255, 255, 0.07); }
+  .wbtn:active { transform: scale(0.94); }
   .wbtn.active { background: var(--accent); }
-  .wbtn .dot { background: #fff; border-radius: 50%; }
+  .wbtn .dot { background: var(--muted); border-radius: 50%; transition: background 0.15s ease; }
+  .wbtn:hover .dot, .wbtn.active .dot { background: #fff; }
 
-  .action { padding: 0 12px; width: auto; font-size: 13px; font-weight: 600; gap: 6px; }
-  .action.save { background: #2b2d34; }
-  .action.save:hover { background: #373a43; }
-  .action.copy { color: var(--accent); }
-  .action.primary { background: var(--accent); color: #fff; }
-  .action.primary:hover { filter: brightness(1.08); }
+  /* color palette */
+  #palette { display: flex; gap: 6px; align-items: center; padding: 0 2px; }
+  .swatch {
+    width: 20px; height: 20px; border-radius: 50%; cursor: pointer; padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .swatch:hover { transform: scale(1.12); }
+  .swatch.active {
+    transform: scale(1.12);
+    box-shadow: 0 0 0 2px var(--panel-solid), 0 0 0 4px #ffffff;
+  }
+
+  /* action buttons */
+  .action {
+    width: auto; height: 34px; padding: 0 13px; gap: 6px;
+    font-family: var(--font); font-size: 13px; font-weight: 600; letter-spacing: -0.01em;
+    border-radius: 10px; border: none; cursor: pointer; color: var(--fg);
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255, 255, 255, 0.08);
+    transition: background 0.15s ease, filter 0.15s ease, transform 0.1s ease;
+  }
+  .action:hover { background: rgba(255, 255, 255, 0.14); }
+  .action:active { transform: scale(0.96); }
+  .action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .action svg { width: 16px; height: 16px; }
+  .action.primary { background: var(--accent); color: #fff; box-shadow: 0 2px 14px -3px rgba(59, 130, 246, 0.8); }
+  .action.primary:hover { background: var(--accent-strong); filter: brightness(1.05); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
 </style>
 
 <canvas id="content"></canvas>
 <canvas id="ui"></canvas>
 
-<div id="hint">Drag to select an area · <b>Esc</b> to cancel</div>
+<div id="hint">Drag to select an area <kbd>Esc</kbd> to cancel</div>
 <div id="dims"></div>
 
 <div id="toolbar">
-  <button class="tool" data-tool="move" title="Move / select (V)">
+  <button class="tool" data-tool="move" title="Move / resize selection (V)">
     <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M6 3l13 8.6-5.7.5 3.2 6.2-2.4 1.2-3.2-6.2L6 18z"/></svg>
   </button>
+
   <div class="sep"></div>
-  <button class="tool" data-tool="pen" title="Pen (freehand)">
+
+  <button class="tool" data-tool="pen" title="Pen (P)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
   </button>
-  <button class="tool" data-tool="arrow" title="Arrow">
+  <button class="tool" data-tool="arrow" title="Arrow (A)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/><polyline points="10 4 20 4 20 14"/></svg>
   </button>
-  <button class="tool" data-tool="rect" title="Rectangle">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="14" rx="1"/></svg>
+  <button class="tool" data-tool="line" title="Line (L)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="19" x2="19" y2="5"/></svg>
   </button>
-  <button class="tool" data-tool="ellipse" title="Ellipse">
+  <button class="tool" data-tool="rect" title="Rectangle (R)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="14" rx="2"/></svg>
+  </button>
+  <button class="tool" data-tool="ellipse" title="Ellipse (O)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="7"/></svg>
   </button>
-  <button class="tool" data-tool="line" title="Line">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="20" x2="20" y2="4"/></svg>
+  <button class="tool" data-tool="blur" title="Blur / pixelate (B)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><rect x="6.5" y="6.5" width="3" height="3" rx="0.6" fill="currentColor" stroke="none"/><rect x="14.5" y="6.5" width="3" height="3" rx="0.6" fill="currentColor" stroke="none"/><rect x="10.5" y="10.5" width="3" height="3" rx="0.6" fill="currentColor" stroke="none"/><rect x="6.5" y="14.5" width="3" height="3" rx="0.6" fill="currentColor" stroke="none"/><rect x="14.5" y="14.5" width="3" height="3" rx="0.6" fill="currentColor" stroke="none"/></svg>
   </button>
-  <button class="tool" data-tool="text" title="Text">
+  <button class="tool" data-tool="text" title="Text (T)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="9" y1="20" x2="15" y2="20"/></svg>
   </button>
 
@@ -127,18 +173,24 @@
 
   <div class="sep"></div>
 
-  <div id="palette" style="display:flex; gap:5px; align-items:center;"></div>
+  <div id="palette"></div>
 
   <div class="sep"></div>
 
-  <button class="tool" id="undo" title="Undo (Ctrl+Z)">
+  <button class="tool" id="undo" title="Undo (Ctrl/Cmd+Z)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>
   </button>
 
   <div class="sep"></div>
 
-  <button class="tool action save" id="save">Save</button>
-  <button class="tool action copy" id="copy">Copy</button>
+  <button class="action save" id="save" title="Save as PNG (Ctrl/Cmd+S)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    Save
+  </button>
+  <button class="action primary" id="copy" title="Copy to clipboard (Ctrl/Cmd+C)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    Copy
+  </button>
 </div>
 
 <script src="overlay.js"></script>

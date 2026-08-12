@@ -389,7 +389,7 @@ function openSettings() {
     maximizable: false,
     title: 'Snapshot — Settings',
     autoHideMenuBar: true,
-    backgroundColor: '#1e1f24',
+    backgroundColor: '#0b1120',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -410,10 +410,29 @@ function openSettings() {
 // ---------------------------------------------------------------------------
 // Tray
 // ---------------------------------------------------------------------------
+function prettyShortcut(accel) {
+  if (isMac) {
+    return accel
+      .replace('CommandOrControl', '⌘')
+      .replace('Command', '⌘')
+      .replace('Control', '⌃')
+      .replace('Alt', '⌥')
+      .replace('Shift', '⇧')
+      .replace(/\+/g, '');
+  }
+  return accel.replace('CommandOrControl', 'Ctrl');
+}
+
 function buildTrayMenu() {
   if (!tray) return;
   const menu = Menu.buildFromTemplate([
-    { label: `Capture region  (${config.shortcut})`, click: () => captureAndShow() },
+    { label: 'Snapshot', enabled: false },
+    { type: 'separator' },
+    {
+      label: 'Capture region',
+      accelerator: config.shortcut,
+      click: () => captureAndShow(),
+    },
     { type: 'separator' },
     {
       label: 'Start at login',
@@ -430,13 +449,20 @@ function buildTrayMenu() {
     { label: 'Quit Snapshot', click: () => app.quit() },
   ]);
   tray.setContextMenu(menu);
-  tray.setToolTip('Snapshot — press ' + config.shortcut + ' to capture');
+  tray.setToolTip('Snapshot · ' + prettyShortcut(config.shortcut) + ' to capture');
 }
 
 function createTray() {
   try {
-    const icon = nativeImage.createFromPath(path.join(__dirname, 'tray.png'));
-    tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
+    let icon;
+    if (isMac) {
+      // Monochrome template image: adapts to light/dark menu bar automatically.
+      icon = nativeImage.createFromPath(path.join(__dirname, 'trayTemplate.png'));
+      if (!icon.isEmpty()) icon.setTemplateImage(true);
+    } else {
+      icon = nativeImage.createFromPath(path.join(__dirname, 'tray.png'));
+    }
+    tray = new Tray(icon && !icon.isEmpty() ? icon : nativeImage.createEmpty());
   } catch (e) {
     return;
   }

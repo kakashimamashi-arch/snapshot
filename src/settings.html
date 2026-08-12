@@ -1,38 +1,90 @@
 <meta charset="utf-8" />
 <style>
-  :root { --accent:#2f6fed; --panel:#26272e; --border:#3a3c45; --text:#e8e9ee; --muted:#9aa0ad; }
-  * { box-sizing:border-box; }
-  html,body { margin:0; height:100%; background:#1e1f24; color:var(--text);
-    font-family:-apple-system,"Segoe UI",Roboto,sans-serif; font-size:14px; }
-  .wrap { padding:20px 22px; display:flex; flex-direction:column; gap:18px; height:100%; }
-  h1 { font-size:15px; margin:0 0 2px; font-weight:600; }
-  .row { display:flex; flex-direction:column; gap:7px; }
-  label.title { font-weight:600; font-size:13px; }
-  .hint { color:var(--muted); font-size:12px; }
+  :root {
+    --accent: #3b82f6;
+    --accent-strong: #2563eb;
+    --bg: #0b1120;
+    --panel: #131c2e;
+    --panel-2: #1b2740;
+    --border: rgba(255, 255, 255, 0.10);
+    --fg: #e5e7eb;
+    --muted: #94a3b8;
+    --danger: #f87171;
+    --font: system-ui, -apple-system, "Segoe UI Variable Display", "Segoe UI",
+      Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font-family: var(--font); font-size: 14px; -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.01em;
+  }
+  .wrap { padding: 22px 24px; display: flex; flex-direction: column; gap: 20px; height: 100%; }
+
+  header { display: flex; align-items: center; gap: 10px; }
+  header .logo {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 14px -4px rgba(59, 130, 246, 0.8);
+  }
+  header .logo svg { width: 17px; height: 17px; color: #fff; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 650; letter-spacing: -0.02em; }
+  header p { margin: 1px 0 0; font-size: 12px; color: var(--muted); }
+
+  .row { display: flex; flex-direction: column; gap: 8px; }
+  label.title { font-weight: 600; font-size: 13px; }
+
   #shortcut {
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
-    padding:10px 12px; background:var(--panel); border:1px solid var(--border);
-    border-radius:9px; cursor:pointer; user-select:none;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 11px 13px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 11px; cursor: pointer; transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
   }
-  #shortcut.capturing { border-color:var(--accent); box-shadow:0 0 0 2px rgba(47,111,237,.25); }
-  #shortcut .combo { font-variant-numeric:tabular-nums; font-weight:600; letter-spacing:.3px; }
-  #shortcut .combo.placeholder { color:var(--muted); font-weight:400; }
-  #shortcut .edit { color:var(--accent); font-size:12px; }
-  .check { display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; }
-  .check input { width:16px; height:16px; accent-color:var(--accent); }
-  .err { color:#ff6b6b; font-size:12px; min-height:14px; }
-  .actions { margin-top:auto; display:flex; justify-content:flex-end; gap:10px; }
+  #shortcut:hover { background: var(--panel-2); }
+  #shortcut.capturing { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25); }
+  #shortcut .combo { font-weight: 650; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+  #shortcut .combo.placeholder { color: var(--muted); font-weight: 400; }
+  #shortcut .edit { color: var(--accent); font-size: 12px; font-weight: 600; }
+  .hint { color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .err { color: var(--danger); font-size: 12px; min-height: 15px; font-weight: 500; }
+
+  .check {
+    display: flex; align-items: center; gap: 11px; cursor: pointer;
+    padding: 12px 13px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 11px; transition: background 0.15s ease;
+  }
+  .check:hover { background: var(--panel-2); }
+  .check input { width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; }
+  .check .ctext { display: flex; flex-direction: column; gap: 1px; }
+  .check .ctext strong { font-weight: 600; font-size: 13px; }
+  .check .ctext span { color: var(--muted); font-size: 12px; }
+
+  .actions { margin-top: auto; display: flex; justify-content: flex-end; gap: 10px; }
   button.btn {
-    padding:8px 16px; border-radius:8px; border:1px solid var(--border);
-    background:var(--panel); color:var(--text); cursor:pointer; font-size:13px; font-weight:600;
+    padding: 9px 17px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--fg); cursor: pointer;
+    font-family: var(--font); font-size: 13px; font-weight: 600; letter-spacing: -0.01em;
+    transition: background 0.15s ease, filter 0.15s ease, transform 0.1s ease;
   }
-  button.btn:hover { background:#31333c; }
-  button.btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
-  button.btn.primary:hover { filter:brightness(1.08); }
+  button.btn:hover { background: var(--panel-2); }
+  button.btn:active { transform: scale(0.97); }
+  button.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.btn.primary { background: var(--accent); border-color: transparent; color: #fff; box-shadow: 0 3px 14px -3px rgba(59, 130, 246, 0.8); }
+  button.btn.primary:hover { background: var(--accent-strong); filter: brightness(1.04); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
 <div class="wrap">
-  <h1>Snapshot Settings</h1>
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    </div>
+    <div>
+      <h1>Snapshot Settings</h1>
+      <p>Capture shortcut & startup</p>
+    </div>
+  </header>
 
   <div class="row">
     <label class="title">Capture shortcut</label>
@@ -40,13 +92,16 @@
       <span class="combo placeholder" id="combo">Click, then press keys…</span>
       <span class="edit" id="editLabel">Change</span>
     </div>
-    <div class="hint">Need at least one modifier (Ctrl/Cmd, Alt, Shift) plus a key.</div>
+    <div class="hint">Needs at least one modifier (Ctrl/Cmd, Alt or Shift) plus a key.</div>
     <div class="err" id="err"></div>
   </div>
 
   <label class="check">
     <input type="checkbox" id="autostart" />
-    <span>Start Snapshot automatically at login</span>
+    <span class="ctext">
+      <strong>Start at login</strong>
+      <span>Launch Snapshot automatically when you sign in</span>
+    </span>
   </label>
 
   <div class="actions">
@@ -64,12 +119,14 @@
   const editLabel = document.getElementById('editLabel');
   const err = document.getElementById('err');
   const autostart = document.getElementById('autostart');
+  const isMac = navigator.platform.toLowerCase().includes('mac');
 
   function pretty(accel) {
     return accel
-      .replace('CommandOrControl', navigator.platform.includes('Mac') ? '⌘' : 'Ctrl')
-      .replace('Alt', navigator.platform.includes('Mac') ? '⌥' : 'Alt')
-      .replace('Shift', navigator.platform.includes('Mac') ? '⇧' : 'Shift');
+      .replace('CommandOrControl', isMac ? '⌘' : 'Ctrl')
+      .replace('Alt', isMac ? '⌥' : 'Alt')
+      .replace('Shift', isMac ? '⇧' : 'Shift')
+      .replace(/\+/g, isMac ? ' ' : ' + ');
   }
   function showCombo(accel) {
     combo.textContent = pretty(accel);
@@ -96,7 +153,6 @@
     box.classList.remove('capturing');
     editLabel.textContent = 'Change';
   }
-
   box.addEventListener('click', () => (capturing ? stopCapture() : startCapture()));
 
   function keyName(e) {
@@ -119,18 +175,13 @@
     if (!capturing) return;
     e.preventDefault();
     if (e.key === 'Escape') { stopCapture(); showCombo(current); return; }
-
     const mods = [];
     if (e.ctrlKey || e.metaKey) mods.push('CommandOrControl');
     if (e.altKey) mods.push('Alt');
     if (e.shiftKey) mods.push('Shift');
-
     const k = keyName(e);
-    if (!k) return; // waiting for a non-modifier key
-    if (mods.length === 0) {
-      err.textContent = 'Add a modifier (Ctrl/Cmd, Alt or Shift).';
-      return;
-    }
+    if (!k) return;
+    if (mods.length === 0) { err.textContent = 'Add a modifier (Ctrl/Cmd, Alt or Shift).'; return; }
     current = [...mods, k].join('+');
     err.textContent = '';
     showCombo(current);
@@ -138,7 +189,6 @@
   });
 
   document.getElementById('cancel').addEventListener('click', () => window.settingsAPI.close());
-
   document.getElementById('save').addEventListener('click', async () => {
     const res = await window.settingsAPI.save({ shortcut: current, openAtLogin: autostart.checked });
     if (res && res.ok === false) {

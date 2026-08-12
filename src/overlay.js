@@ -160,6 +160,33 @@ function drawArrow(ctx, x0, y0, x1, y1, w) {
   ctx.fill();
 }
 
+// Blur/pixelate a rectangular region by sampling `src` down and scaling it back
+// up with smoothing. Samples whatever is already on the canvas beneath it, so a
+// blur placed over other annotations obscures them too.
+function applyBlur(ctx, src, a) {
+  const rx = Math.round(Math.min(a.x0, a.x1) * scale);
+  const ry = Math.round(Math.min(a.y0, a.y1) * scale);
+  const rw = Math.round(Math.abs(a.x1 - a.x0) * scale);
+  const rh = Math.round(Math.abs(a.y1 - a.y0) * scale);
+  if (rw < 2 || rh < 2) return;
+  const block = Math.max(3, Math.round(9 * scale)); // ~9 CSS-px blocks
+  const tw = Math.max(1, Math.round(rw / block));
+  const th = Math.max(1, Math.round(rh / block));
+  const tmp = document.createElement('canvas');
+  tmp.width = tw; tmp.height = th;
+  const tc = tmp.getContext('2d');
+  tc.imageSmoothingEnabled = true;
+  tc.drawImage(src, rx, ry, rw, rh, 0, 0, tw, th);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(rx, ry, rw, rh);
+  ctx.clip();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(tmp, 0, 0, tw, th, rx, ry, rw, rh);
+  ctx.restore();
+}
+
 // ---------------------------------------------------------------------------
 function redrawContent() {
   if (!img) return;
@@ -171,7 +198,10 @@ function redrawContent() {
     cctx.rect(sel.x * scale, sel.y * scale, sel.w * scale, sel.h * scale);
     cctx.clip();
   }
-  for (const a of annotations) drawAnnotation(cctx, a);
+  for (const a of annotations) {
+    if (a.tool === 'blur') applyBlur(cctx, contentCanvas, a);
+    else drawAnnotation(cctx, a);
+  }
   cctx.restore();
 }
 
@@ -192,7 +222,7 @@ function redrawUI() {
 
   if (sel && sel.w > 0 && sel.h > 0) {
     uctx.clearRect(sel.x * s, sel.y * s, sel.w * s, sel.h * s);
-    uctx.strokeStyle = '#2f6fed';
+    uctx.strokeStyle = '#3b82f6';
     uctx.lineWidth = Math.max(1, 1.5 * s);
     uctx.strokeRect(sel.x * s, sel.y * s, sel.w * s, sel.h * s);
 
@@ -204,7 +234,7 @@ function redrawUI() {
         const [cx, cy] = hp[k];
         uctx.fillStyle = '#ffffff';
         uctx.fillRect(cx * s - hs, cy * s - hs, hs * 2, hs * 2);
-        uctx.strokeStyle = '#2f6fed';
+        uctx.strokeStyle = '#3b82f6';
         uctx.lineWidth = Math.max(1, 1.5 * s);
         uctx.strokeRect(cx * s - hs, cy * s - hs, hs * 2, hs * 2);
       }
@@ -215,7 +245,8 @@ function redrawUI() {
       uctx.beginPath();
       uctx.rect(sel.x * s, sel.y * s, sel.w * s, sel.h * s);
       uctx.clip();
-      drawAnnotation(uctx, draft);
+      if (draft.tool === 'blur') applyBlur(uctx, contentCanvas, draft);
+      else drawAnnotation(uctx, draft);
       uctx.restore();
     }
   }
@@ -548,7 +579,7 @@ window.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') { e.preventDefault(); doCopy(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); doSave(); return; }
   if (phase !== 'annotating') return;
-  const map = { v: 'move', p: 'pen', a: 'arrow', r: 'rect', o: 'ellipse', l: 'line', t: 'text' };
+  const map = { v: 'move', p: 'pen', a: 'arrow', r: 'rect', o: 'ellipse', l: 'line', b: 'blur', t: 'text' };
   const t = map[e.key.toLowerCase()];
   if (t) setTool(t);
 });
