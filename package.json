@@ -1,7 +1,7 @@
 {
   "name": "snapshot-annotate",
   "productName": "Snapshot",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Cross-platform screenshot tool with region selection and annotation",
   "author": "Yaroslav Yurchenko",
   "license": "MIT",
@@ -24,6 +24,7 @@
       "output": "dist",
       "buildResources": "build"
     },
+    "afterPack": "build/afterPack.js",
     "files": [
       "src/**/*",
       "package.json"
