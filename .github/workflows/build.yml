@@ -1,8 +1,12 @@
 name: Build installers
 
-# Push a version tag (e.g. v1.0.0) to build + publish a GitHub Release with the
-# Windows .exe and both macOS .dmg files. You can also run it manually from the
-# Actions tab (workflow_dispatch) to just get the installers as artifacts.
+# Push a version tag (e.g. v1.0.4) to build all platforms and publish a single
+# GitHub Release with the Windows .exe and both macOS .dmg files.
+#
+# Build (Windows + macOS) runs in parallel but does NOT publish. A separate
+# `release` job then collects every artifact and creates ONE release — this
+# avoids the race where two parallel jobs both try to create the release and one
+# fails with "422 already_exists".
 on:
   push:
     tags:
@@ -19,7 +23,6 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,27 +36,41 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # On a tag: build for the host OS and publish to the GitHub Release.
-      - name: Build & publish (release)
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Build (no publish)
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false # unsigned build, skip macOS signing
-        run: npx electron-builder --publish always
-
-      # Manual run: just build, don't publish.
-      - name: Build (artifacts only)
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
         run: npx electron-builder --publish never
 
       - name: Upload artifacts
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
-          name: installers-${{ matrix.os }}
+          name: dist-${{ matrix.os }}
           path: |
             dist/*.exe
             dist/*.dmg
+            dist/*.blockmap
+            dist/latest*.yml
           if-no-files-found: ignore
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          TAG="${GITHUB_REF_NAME}"
+          if ! gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" \
+              --title "$TAG" --notes "Automated build for $TAG"
+          fi
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" artifacts/* --clobber
